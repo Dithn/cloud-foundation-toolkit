@@ -1,26 +1,46 @@
 name: Release new CLI versions
 on:
   push:
-    branches: 
+    branches:
       - "master"
     paths:
       - "cli/Makefile"
+      - ".github/workflows/release-cli.yml"
 env:
   CLI_BUCKET: gs://cft-cli
   RELEASE_URL: https://api.github.com/repos/GoogleCloudPlatform/cloud-foundation-toolkit/releases/latest
 
 jobs:
   release-new-cli:
-    name: Build and push new CFT dev tools image
+    name: Release new CLI versions
     runs-on: ubuntu-latest
+    if: github.repository == 'GoogleCloudPlatform/cloud-foundation-toolkit'
+
+    permissions:
+      contents: 'write'
+      id-token: 'write'
 
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: google-github-actions/setup-gcloud@master
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
-          version: "286.0.0"
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f' # v2.1.7
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WIF_PROVIDER }}'
+          service_account: '${{ secrets.GCP_WIF_SA_EMAIL }}'
+
+      - uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
+        with:
+          version: "410.0.0"
+
+      # used by make release which runs gcloud alpha storage
+      - name: Install gcloud alpha commands
+        run: gcloud components install alpha
 
       - name: Retrieve last released version
         run: |-
@@ -35,7 +55,7 @@ jobs:
           chmod +x bin/*
 
       - name: Archive build artifacts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: bin
           path: cli/bin
@@ -55,18 +75,18 @@ jobs:
       - name: Create Release
         if: env.LAST_VERSION != env.CURRENT_VERSION
         id: create_release
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.CURRENT_VERSION }}
+          tag_name: cli/${{ env.CURRENT_VERSION }}
           release_name: CLI Release ${{ env.CURRENT_VERSION }}
           draft: false
           prerelease: false
 
       - name: Upload Linux Release
         if: env.LAST_VERSION != env.CURRENT_VERSION
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -77,7 +97,7 @@ jobs:
 
       - name: Upload Darwin Release
         if: env.LAST_VERSION != env.CURRENT_VERSION
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -88,7 +108,7 @@ jobs:
 
       - name: Upload Windows Release
         if: env.LAST_VERSION != env.CURRENT_VERSION
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Google LLC
+ * Copyright 2019-2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,28 +15,45 @@
  */
 
 locals {
-  repo_labels = {
-    for o in flatten([
-      for repo in local.repos :
-      [
-        for label in local.labels :
-        {
-          "repo" : repo,
-          "label" : label.name,
-          "color" : label.color,
-          "description" : label.description
-        }
-      ]
-    ]) :
-    "${o.repo}/${o.label}" => o
-  }
+  labels = [
+    {
+      name : "enhancement",
+      color : "a2eeef",
+      description : "New feature or request"
+    },
+    {
+      name : "bug",
+      color : "d73a4a"
+      description : "Something isn't working"
+    },
+    {
+      name : "good first issue",
+      color : "7057ff"
+      description : "Good for newcomers"
+    },
+    {
+      name : "triaged",
+      color : "322560",
+      description : "Scoped and ready for work"
+    },
+    {
+      name : "release-please:force-run",
+      color : "e7d87d",
+      description : "Force release-please to check for changes."
+    },
+  ]
 }
 
-# Create labels on all repos
-resource "github_issue_label" "test_repo" {
-  for_each    = local.repo_labels
-  repository  = each.value.repo
-  name        = each.value.label
-  color       = each.value.color
-  description = each.value.description
+module "repo_labels_gcp" {
+  source    = "../../modules/repo_labels"
+  org       = "GoogleCloudPlatform"
+  repo_list = [for k, v in module.repos_gcp.repos : k]
+  labels    = local.labels
+}
+
+module "repo_labels_tgm" {
+  source    = "../../modules/repo_labels"
+  org       = "terraform-google-modules"
+  repo_list = setunion([for k, v in module.repos_tgm.repos : k], ["terraform-docs-samples"])
+  labels    = local.labels
 }

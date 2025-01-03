@@ -16,7 +16,7 @@
 
 module "folders-root" {
   source  = "terraform-google-modules/folders/google"
-  version = "~> 2.0"
+  version = "~> 5.0"
 
   parent = "organizations/${local.org_id}"
 
@@ -30,11 +30,21 @@ module "folders-root" {
 
 module "folders-ci" {
   source  = "terraform-google-modules/folders/google"
-  version = "~> 2.0"
+  version = "~> 5.0"
 
   parent = "folders/${replace(local.folders["ci-projects"], "folders/", "")}"
 
-  names = [for module in concat(local.tgm_org_modules, local.gcp_org_modules) : "ci-${module}"]
+  names = [for module in [for repo in local.repos : try(repo.short_name, trimprefix(repo.name, "terraform-google-"))] : "ci-${module}"]
 
+  set_roles           = false
+  deletion_protection = false
+}
+
+module "bpt_ci_folder" {
+  source  = "terraform-google-modules/folders/google"
+  version = "~> 5.0"
+
+  parent    = "folders/${replace(local.folders["ci-projects"], "folders/", "")}"
+  names     = ["ci-bpt"]
   set_roles = false
 }

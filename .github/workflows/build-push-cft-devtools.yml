@@ -13,14 +13,26 @@ jobs:
   build-push-dev-tools:
     name: Build and push new CFT dev tools image
     runs-on: ubuntu-latest
+    if: github.repository == 'GoogleCloudPlatform/cloud-foundation-toolkit'
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      issues: 'write'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: google-github-actions/setup-gcloud@master
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f' # v2.1.7
         with:
-          version: "286.0.0"
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: '${{ secrets.GCP_WIF_PROVIDER }}'
+          service_account: '${{ secrets.GCP_WIF_SA_EMAIL }}'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
+        with:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Build
@@ -28,6 +40,30 @@ jobs:
           gcloud auth configure-docker -q
           cd infra/build && make build-image-developer-tools
 
-      - name: Push
+      - name: Filter paths for push
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            src:
+              - "infra/build/**"
+
+      - if: steps.filter.outputs.src == 'true'
+        name: Push
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: |-
           cd infra/build && make release-image-developer-tools
+
+      - name: Open issue if push failed
+        if: ${{ failure() && steps.filter.outputs.src == 'true' }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |-
+              github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: 'build-push-dev-tools job failed',
+                  body: 'Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+                  assignees: ['bharathkkb','apeabody']
+                })

@@ -49,16 +49,17 @@ resource "google_project_iam_custom_role" "create_build_role" {
 }
 
 resource "google_project_iam_member" "project" {
-  role   = google_project_iam_custom_role.create_build_role.id
-  member = "serviceAccount:${google_service_account.service_account.email}"
+  role    = google_project_iam_custom_role.create_build_role.id
+  member  = "serviceAccount:${google_service_account.service_account.email}"
+  project = local.project_id
 }
 
 resource "google_cloud_scheduler_job" "job" {
   name        = "trigger-test-org-iam-reset-build"
   description = "Trigger reset test org IAM build"
   region      = "us-central1"
-  # run every week at 13:00 on Saturday
-  schedule = "0 13 * * 6"
+  # run every day at 3:00
+  schedule = "0 3 * * *"
 
   http_target {
     http_method = "POST"

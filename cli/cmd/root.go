@@ -3,10 +3,13 @@ package cmd
 import (
 	"os"
 
+	"github.com/GoogleCloudPlatform/cloud-foundation-toolkit/cli/bpbuild"
+	"github.com/GoogleCloudPlatform/cloud-foundation-toolkit/cli/bptest"
 	"github.com/GoogleCloudPlatform/cloud-foundation-toolkit/cli/report"
 	"github.com/GoogleCloudPlatform/cloud-foundation-toolkit/cli/scorecard"
 	log "github.com/inconshreveable/log15"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -17,7 +20,7 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		// no params means same as -h flag
-		if args == nil || len(args) == 0 {
+		if len(args) == 0 {
 			cmd.HelpFunc()(cmd, args)
 		}
 	},
@@ -25,6 +28,8 @@ var rootCmd = &cobra.Command{
 		if !flags.verbose {
 			// discard logs
 			scorecard.Log.SetHandler(log.DiscardHandler())
+			bptest.Log.SetHandler(log.DiscardHandler())
+			bpbuild.Log.SetHandler(log.DiscardHandler())
 		}
 		// We want to dump to stdout by default
 		cmd.SetOut(cmd.OutOrStdout())
@@ -66,9 +71,15 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 	}
 
 	rootCmd.PersistentFlags().BoolVar(&flags.verbose, "verbose", false, "Log output to stdout")
+	err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	if err != nil {
+		panic(err)
+	}
 
 	rootCmd.AddCommand(scorecard.Cmd)
 	rootCmd.AddCommand(report.Cmd)
+	rootCmd.AddCommand(bptest.Cmd)
+	rootCmd.AddCommand(bpbuild.Cmd)
 }
 
 func Execute() {

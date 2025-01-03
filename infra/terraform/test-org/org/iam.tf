@@ -16,8 +16,8 @@
  */
 
 module "admin_bindings" {
-  source  = "terraform-google-modules/iam/google"
-  version = "~> 2.0"
+  source  = "terraform-google-modules/iam/google//modules/folders_iam"
+  version = "~> 8.0"
 
   folders = [local.folders["ci-projects"]]
 
@@ -37,8 +37,8 @@ module "admin_bindings" {
 }
 
 module "ci_bindings" {
-  source  = "terraform-google-modules/iam/google"
-  version = "~> 2.0"
+  source  = "terraform-google-modules/iam/google//modules/folders_iam"
+  version = "~> 8.0"
 
   folders = [local.folders["ci-projects"]]
 
@@ -58,8 +58,8 @@ module "ci_bindings" {
 }
 
 module "ci_folders_folder_bindings" {
-  source  = "terraform-google-modules/iam/google"
-  version = "~> 2.0"
+  source  = "terraform-google-modules/iam/google//modules/folders_iam"
+  version = "~> 8.0"
 
   folders = [local.ci_folders["ci-folders"]]
 
@@ -68,10 +68,4 @@ module "ci_folders_folder_bindings" {
       "group:${local.cft_ci_group}",
     ]
   }
-}
-
-resource "google_billing_account_iam_member" "ci-billing-user" {
-  billing_account_id = local.billing_account
-  role               = "roles/billing.admin"
-  member             = "group:${local.cft_ci_group}"
 }

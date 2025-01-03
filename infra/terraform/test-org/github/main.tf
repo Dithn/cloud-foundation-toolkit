@@ -15,113 +15,14 @@
  */
 
 locals {
-  gh_org = "terraform-google-modules"
-  repos  = keys(data.terraform_remote_state.triggers.outputs.repo_folder)
-  labels = [
-    {
-      name : "enhancement",
-      color : "a2eeef",
-      description : "New feature or request"
-    },
-    {
-      name : "bug",
-      color : "d73a4a"
-      description : "Something isn't working"
-    },
-    {
-      name : "duplicate",
-      color : "cfd3d7"
-      description : "This issue or pull request already exists"
-    },
-    {
-      name : "good first issue",
-      color : "7057ff"
-      description : "Good for newcomers"
-    },
-    {
-      name : "help wanted",
-      color : "008672",
-      description : "Extra attention is needed"
-    },
-    {
-      name : "invalid",
-      color : "e4e669",
-      description : "Something doesn't seem right"
-    },
-    {
-      name : "question",
-      color : "d876e3",
-      description : "Further information is requested"
-    },
-    {
-      name : "wontfix",
-      color : "db643d",
-      description : "This will not be worked on"
-    },
-    {
-      name : "triaged",
-      color : "322560",
-      description : "Scoped and ready for work"
-    },
-    {
-      name : "upstream",
-      color : "B580D1",
-      description : "Work required on Terraform core or provider"
-    },
-    {
-      name : "security",
-      color : "801336",
-      description : "Fixes a security vulnerability or lapse in best practice"
-    },
-    {
-      name : "refactor",
-      color : "004445",
-      description : "Updates for readability, code cleanliness, DRYness, etc. Only needs Terraform exp."
-    },
-    {
-      name : "blocked",
-      color : "ef4339",
-      description : "Blocked by some other work"
-    },
-    {
-      name: "P1",
-      color: "b01111",
-      description: "highest priority issues"
-    },
-    {
-      name: "P2",
-      color: "b4451f",
-      description: "high priority issues"
-    },
-    {
-      name: "P3",
-      color: "e7d87d",
-      description: "medium priority issues"
-    },
-    {
-      name: "P4",
-      color: "62a1db",
-      description: "low priority issues"
-    },
-    {
-      name: "release-please:force-run",
-      color: "e7d87d",
-      description: "Force release-please to check for changes."
-    },
-    {
-      name: "waiting-response",
-      color: "5319e7",
-      description: "Waiting for issue author to respond."
-    },
-    {
-      name: "v0.13",
-      color: "edb761",
-      description: "Terraform v0.13 issue."
-    },
-  ]
+  modules = data.terraform_remote_state.org.outputs.modules
 }
 
 provider "github" {
-  version      = "~> 2.2"
-  organization = local.gh_org
+  owner = "terraform-google-modules"
+}
+
+provider "github" {
+  alias = "gcp"
+  owner = "GoogleCloudPlatform"
 }

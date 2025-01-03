@@ -19,7 +19,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,7 +42,11 @@ func GenerateReports(dirPath string, queryPath string, outputPath string, report
 	if err != nil {
 		return err
 	}
-	printReports(results, outputPath, reportFormat, fileSuffix)
+	err = printReports(results, outputPath, reportFormat, fileSuffix)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -57,7 +60,7 @@ func convertAndGenerateTempAssetFile(caiPath string, outputPath string, fileMidN
 	}
 	outJSON, _ := json.MarshalIndent(wrapped, "", "  ")
 	rawAssetFileName = "raw_assets_" + fileMidName + ".json"
-	err = ioutil.WriteFile(filepath.Join(outputPath, rawAssetFileName), outJSON, 0644)
+	err = os.WriteFile(filepath.Join(outputPath, rawAssetFileName), outJSON, 0644)
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +112,7 @@ func printReports(results interface{}, reportOutputPath string, format string, f
 					if err != nil {
 						return err
 					}
-					err = ioutil.WriteFile(filepath.Join(reportOutputPath, reportFileName), fileContent, 0644)
+					err = os.WriteFile(filepath.Join(reportOutputPath, reportFileName), fileContent, 0644)
 					if err != nil {
 						return err
 					}
@@ -128,7 +131,11 @@ func printReports(results interface{}, reportOutputPath string, format string, f
 							keys = append(keys, key)
 						}
 						sort.Strings(keys)
-						w.Write(keys)
+						err := w.Write(keys)
+						if err != nil {
+							return err
+						}
+
 						w.Flush()
 						for _, record := range contentSlice {
 							recordMap := record.(map[string]interface{})
@@ -136,7 +143,10 @@ func printReports(results interface{}, reportOutputPath string, format string, f
 							for _, key := range keys {
 								record = append(record, recordMap[key].(string))
 							}
-							w.Write(record)
+							err = w.Write(record)
+							if err != nil {
+								return err
+							}
 						}
 						w.Flush()
 					}

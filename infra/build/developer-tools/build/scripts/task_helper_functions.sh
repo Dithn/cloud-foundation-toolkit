@@ -18,7 +18,7 @@
 # setup_trap_handler() and used by maketemp()
 finish() {
   if [[ -n "${DELETE_AT_EXIT:-}" ]]; then
-    rm -rf "${DELETE_AT_EXIT}"
+    rm -rf "$DELETE_AT_EXIT"
   fi
 }
 
@@ -27,7 +27,10 @@ finish() {
 # for use with maketemp() to automatically clean up temporary files, especially
 # those used to store credentials.
 setup_trap_handler() {
-  readonly DELETE_AT_EXIT="$(mktemp -d)"
+  if [[ -z "${DELETE_AT_EXIT+x}" ]]; then
+    DELETE_AT_EXIT="$(mktemp -d)"
+    readonly DELETE_AT_EXIT
+  fi
   trap finish EXIT
 }
 
@@ -74,6 +77,11 @@ find_files() {
     ".*/.*\.jpg"
     ".*/.*\.jpeg"
     ".*/.*\.svg"
+    ".*/.*\.ico"
+    ".*/.*\.jar"
+    ".*/.*\.parquet"
+    ".*/.*\.pb"
+    ".*/.*\.index"
     "\./autogen"
     "\./test/fixtures/all_examples"
     "\./test/fixtures/shared"
@@ -147,8 +155,8 @@ function lint_docker() {
 
 # This function creates TF_PLUGIN_CACHE_DIR if TF_PLUGIN_CACHE_DIR envvar is set
 function init_tf_plugin_cache() {
-  if [[ ! -z "${TF_PLUGIN_CACHE_DIR}" ]]; then
-    mkdir -p ${TF_PLUGIN_CACHE_DIR}
+  if [[ -n "$TF_PLUGIN_CACHE_DIR" ]]; then
+    mkdir -p "$TF_PLUGIN_CACHE_DIR"
   fi
 }
 
@@ -232,7 +240,7 @@ check_whitespace() {
   local rc
   echo "Checking for trailing whitespace"
   find_files . -print \
-    | grep -v -E '\.(pyc|png|gz|tfvars)$' \
+    | grep -v -E '\.(pyc|png|gz|swp|tfvars|mp4|zip|ico|jar|parquet|pb|index)$' \
     | compat_xargs grep -H -n '[[:blank:]]$'
   rc=$?
   if [[ ${rc} -eq 0 ]]; then
@@ -243,7 +251,7 @@ check_whitespace() {
   fi
   echo "Checking for missing newline at end of file"
   find_files . -print \
-    | grep -v -E '\.(png|gz|tfvars)$' \
+    | grep -v -E '\.(png|gz|tfvars|mp4|zip|ico|jar|parquet|pb|index)$' \
     | compat_xargs check_eof_newline
   return $((rc+$?))
 }
@@ -305,6 +313,93 @@ function generate_docs() {
   done < <(find_files . -name '*.tf' -print0 \
     | compat_xargs -0 -n1 dirname \
     | sort -u)
+
+  # disable opt in after https://github.com/GoogleCloudPlatform/cloud-foundation-toolkit/issues/1353
+  if [[ "${ENABLE_BPMETADATA:-}" -ne 1 ]]; then
+    echo "ENABLE_BPMETADATA not set to 1. Skipping metadata generation."
+    return 0
+  fi
+  generate_metadata "${1-default}"
+}
+
+function generate_metadata() {
+  echo "Generating blueprint metadata"
+  arg=${1-default}
+  # check if metadata was request with parameters
+  if [ "${arg}" = "default" ]; then
+    cft blueprint metadata
+  elif [ "${arg}" = "display" ]; then
+    cft blueprint metadata -d
+  else
+    eval "cft blueprint metadata $arg"
+  fi
+
+  if [ $? -ne 0 ]; then
+    echo "Warning! Unable to generate metadata."
+    return 1
+  fi
+  # add headers since comments are not preserved with metadata generation
+  # TODO: b/260869608
+  fix_headers
+}
+
+function check_metadata() {
+  if [[ "${ENABLE_BPMETADATA:-}" -ne 1 ]]; then
+    echo "ENABLE_BPMETADATA not set to 1. Skipping metadata validation."
+    return 0
+  fi
+
+  echo "Validating blueprint metadata"
+  cft blueprint metadata -v
+
+  if [ $? -eq 0 ]; then
+    echo "Success!"
+  else
+    echo "Warning! Unable to validate metadata."
+  fi
+}
+
+function check_tflint() {
+  if [[ "${DISABLE_TFLINT:-}" ]]; then
+    echo "DISABLE_TFLINT set. Skipping tflint check."
+    return 0
+  fi
+  local rval
+  setup_trap_handler
+  rval=0
+  echo "Checking for tflint"
+  local path
+    while read -r path; do
+      local tflintCfg
+      # skip any tf configs under test/
+      if [[ $path == "./test"* ]];then
+        echo "Skipping ${path}"
+        continue
+      fi
+      # load default ruleset
+      tflintCfg="/root/tflint/.tflint.example.hcl"
+      # load if local repo ruleset
+      if [[ -f "/workspace/.github/.tflint.repo.hcl" ]]; then
+        tflintCfg="/workspace/.github/.tflint.repo.hcl"
+      # if module, load tighter ruleset
+      elif [[ $path == "." || $path == "./modules"* || $path =~ "^[0-9]+-.*" ]]; then
+        tflintCfg="/root/tflint/.tflint.module.hcl"
+      fi
+
+      cd "${path}" && echo "Working in ${path} using ${tflintCfg}..."
+      tflint --config=${tflintCfg} --no-color
+      rc=$?
+      if [[ "${rc}" -ne 0 ]]; then
+        echo "tflint failed ${path} "
+        ((rval++))
+      else
+        echo "tflint passed ${path} "
+      fi
+      cd - >/dev/null
+    done < <(find_files . -name '*.tf' -print0 \
+      | compat_xargs -0 -n1 dirname \
+      | sort -u)
+  return $((rval))
 }
 
 # Lint check to determine whether generate_docs() needs to be run by copying to
@@ -318,18 +413,18 @@ function check_documentation() {
   rsync -axh \
     --exclude '*/.terraform' \
     --exclude '*/.kitchen' \
-    --exclude '*/.git' \
     --exclude 'autogen' \
     --exclude '*/.tfvars' \
     /workspace "${tempdir}" >/dev/null 2>/dev/null
-  cd "${tempdir}"
+  cd "${tempdir}/workspace"
   generate_docs >/dev/null 2>/dev/null
+  # TODO: (b/261241276) preserve verion no. for release PR
   diff -r \
     --exclude=".terraform" \
     --exclude=".kitchen" \
-    --exclude=".git" \
     --exclude="autogen" \
     --exclude="*.tfvars" \
+    --exclude="*metadata.yaml" \
     /workspace "${tempdir}/workspace"
   rc=$?
   if [[ "${rc}" -ne 0 ]]; then
@@ -347,6 +442,11 @@ function generate_modules() {
   if [[ -e /workspace/autogen_modules.json ]]; then
     autogen_modules=$(jq '.' /workspace/autogen_modules.json)
     python3 /usr/local/bin/generate_modules.py "$autogen_modules"
+
+    # formatting the generated modules since formatting does not apply
+    # to jinja templates
+    echo "Running terraform fmt"
+    terraform fmt -recursive
   fi
 }
 
@@ -372,7 +472,6 @@ function check_generate_modules() {
     rsync -axh \
       --exclude '*/.terraform' \
       --exclude '*/.kitchen' \
-      --exclude '*/.git' \
       /workspace "${tempdir}" >/dev/null 2>/dev/null
     cd "${tempdir}/workspace" || exit 1
     generate_modules >/dev/null 2>/dev/null
@@ -423,9 +522,9 @@ function fix_headers() {
   YEAR=$(date +'%Y')
   if [ $# -eq 0 ]
   then
-    find_files . for_header_check -type f -print0 | compat_xargs -0 addlicense -y $YEAR
+    find_files . for_header_check -type f -print0 | compat_xargs -0 addlicense -y "$YEAR"
   else
-    addlicense -y $YEAR "$@"
+    addlicense -y "$YEAR" "$@"
   fi
 }
 
@@ -512,7 +611,7 @@ setup_environment() {
 source_test_env() {
   if [ -d test/setup ]; then
     # shellcheck disable=SC1091
-    source <(python /usr/local/bin/export_tf_outputs.py --path=test/setup)
+    source <(python3 /usr/local/bin/export_tf_outputs.py --path=test/setup)
   else
     if [ -f test/source.sh ]; then
       echo "Warning: test/setup not found. Will only use test/source.sh to configure environment."
@@ -604,7 +703,7 @@ run_terraform_validator() {
           terraform plan -input=false -out "$tmp_plan/plan.tfplan"  || exit 1
           terraform show -json "$tmp_plan/plan.tfplan" > "$tmp_plan/plan.json" || exit 1
 
-          terraform-validator validate "$tmp_plan/plan.json" --policy-path="$policy_file_path" --project="$project" || exit 1
+          gcloud beta terraform vet "$tmp_plan/plan.json" --policy-library="$policy_file_path" --project="$project" || exit 1
 
           cd "$base_dir" || exit
       else

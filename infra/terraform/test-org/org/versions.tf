@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Google LLC
+ * Copyright 2019-2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +15,35 @@
  */
 
 terraform {
-  required_version = ">= 0.12"
+  required_version = ">= 1.4.4"
+  required_providers {
+    external = {
+      source  = "hashicorp/external"
+      version = ">= 1.2, < 3"
+    }
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 3.19, < 7"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = ">= 3.19, < 7"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = ">= 2.1, < 4"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 2.3.1, < 4"
+    }
+    github = {
+      source  = "integrations/github"
+      version = "~> 6.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.13, < 3"
+    }
+  }
 }
-
-provider "external" {
-  version = "~> 1.2"
-}
-
-provider "google" {
-  version = "~> 3.19"
-}
-
-provider "google-beta" {
-  version = "~> 3.19"
-}
-
-provider "null" {
-  version = "~> 2.1"
-}
-
-provider "random" {
-  version = "~> 2.2"
-}
-

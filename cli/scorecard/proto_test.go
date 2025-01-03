@@ -16,25 +16,32 @@ package scorecard
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/config-validator/pkg/api/validator"
 	"github.com/google/go-cmp/cmp"
 )
 
-func jsonToInterface(jsonStr string) map[string]interface{} {
+func jsonToInterface(jsonStr string) (map[string]interface{}, error) {
 	var interfaceVar map[string]interface{}
-	json.Unmarshal([]byte(jsonStr), &interfaceVar)
-	return interfaceVar
+	err := json.Unmarshal([]byte(jsonStr), &interfaceVar)
+	if err != nil {
+		return nil, err
+	}
+
+	return interfaceVar, nil
 }
 
 func TestDataTypeTransformation(t *testing.T) {
-	fileContent, err := ioutil.ReadFile(testRoot + "/shared/iam_policy_audit_logs.json")
+	fileContent, err := os.ReadFile(testRoot + "/shared/iam_policy_audit_logs.json")
 	if err != nil {
 		t.Fatal("unexpected error", err)
 	}
-	asset := jsonToInterface(string(fileContent))
+	asset, err := jsonToInterface(string(fileContent))
+	if err != nil {
+		t.Fatal("unexpected error", err)
+	}
 	wantedName := "//cloudresourcemanager.googleapis.com/projects/23456"
 
 	pbAsset := &validator.Asset{}
@@ -72,7 +79,7 @@ func TestDataTypeTransformation(t *testing.T) {
 			t.Fatalf("failed to parse JSON string %v: %v", gotStr, err)
 		}
 
-		wantStr := `{"name":"//cloudresourcemanager.googleapis.com/projects/23456","assetType":"cloudresourcemanager.googleapis.com/Project","iamPolicy":{"version":1,"bindings":[{"role":"roles/owner","members":["user:user@example.com"]}]},"ancestors":["projects/1234","organizations/56789"]}`
+		wantStr := `{"name":"//cloudresourcemanager.googleapis.com/projects/23456","assetType":"cloudresourcemanager.googleapis.com/Project","iamPolicy":{"version":1,"bindings":[{"role":"roles/owner","members":["user:user@example.com"]}],"auditConfigs":[{"service":"storage.googleapis.com","auditLogConfigs":[{"logType":"ADMIN_READ"},{"logType":"DATA_READ"},{"logType":"DATA_WRITE"}]}]},"ancestors":["projects/1234","organizations/56789"]}`
 		var wantJSON map[string]interface{}
 		if err := json.Unmarshal([]byte(wantStr), &wantJSON); err != nil {
 			t.Fatalf("failed to parse JSON string %v: %v", wantStr, err)

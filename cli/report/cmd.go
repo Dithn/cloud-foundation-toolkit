@@ -31,23 +31,37 @@ func init() {
 	viper.AutomaticEnv()
 
 	Cmd.Flags().StringVar(&flags.queryPath, "query-path", "", "Path to directory containing inventory queries")
-	Cmd.MarkFlagRequired("query-path")
+	err := Cmd.MarkFlagRequired("query-path")
+	if err != nil {
+		panic(err)
+	}
 
 	Cmd.Flags().StringVar(&flags.outputPath, "output-path", "", "Path to directory to contain report outputs")
-	Cmd.MarkFlagRequired("output-path")
+	err = Cmd.MarkFlagRequired("output-path")
+	if err != nil {
+		panic(err)
+	}
 
 	//Cmd.Flags().StringVar(&flags.bucketName, "bucket", "", "GCS bucket name for storing inventory (conflicts with --dir-path)")
 	Cmd.Flags().StringVar(&flags.dirName, "dir-path", "", "Local directory path for storing inventory ")
-	Cmd.MarkFlagRequired("dir-path")
+	err = Cmd.MarkFlagRequired("dir-path")
+	if err != nil {
+		panic(err)
+	}
 
 	Cmd.Flags().StringVar(&flags.reportFormat, "report-format", "", "Format of inventory report outputs, can be json or csv, default is csv")
 	viper.SetDefault("report-format", "csv")
-	viper.BindPFlag("report-format", Cmd.Flags().Lookup("report-format"))
+	err = viper.BindPFlag("report-format", Cmd.Flags().Lookup("report-format"))
+	if err != nil {
+		panic(err)
+	}
 
 	Cmd.AddCommand(listCmd)
 	listCmd.Flags().StringVar(&flags.queryPath, "query-path", "", "Path to directory containing inventory queries")
-	listCmd.MarkFlagRequired("query-path")
-
+	err = listCmd.MarkFlagRequired("query-path")
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Cmd represents the base report command
@@ -55,7 +69,7 @@ var Cmd = &cobra.Command{
 	Use:   "report",
 	Short: "Generate inventory reports based on CAI outputs in a directory.",
 	Long: `Generate inventory reports for resources in Cloud Asset Inventory (CAI) output files, with reports defined in rego (in '<path_to_cloud-foundation-toolkit>/reports/sample' folder).
-	
+
 	Example:
 	  cft report --query-path <path_to_cloud-foundation-toolkit>/reports/sample \
 		--dir-path <path-to-directory-containing-cai-export> \
@@ -85,7 +99,7 @@ var listCmd = &cobra.Command{
 	Use:   "list-available-reports",
 	Short: "List available inventory report queries.",
 	Long: `List available inventory report queries for resources in Cloud Asset Inventory (CAI).
-	
+
 	Example:
 	  cft report list-available-reports --query-path <path_to_cloud-foundation-toolkit>/reports/sample
 	`,

@@ -17,7 +17,8 @@
 package utils
 
 import (
-	"io/ioutil"
+	"os"
+	"regexp"
 
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/tidwall/gjson"
@@ -26,7 +27,7 @@ import (
 // LoadJSON reads and parses a json file into a gjson.Result.
 // It fails test if not unable to parse.
 func LoadJSON(t testing.TB, path string) gjson.Result {
-	j, err := ioutil.ReadFile(path)
+	j, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("Error reading json file %s", path)
 	}
@@ -42,4 +43,19 @@ func ParseJSONResult(t testing.TB, j string) gjson.Result {
 		t.Fatalf("Error parsing output, invalid json: %s", j)
 	}
 	return gjson.Parse(j)
+}
+
+// Kubectl transient errors
+var (
+	KubectlTransientErrors = []string{
+		"E022[23] .* the server is currently unable to handle the request",
+	}
+)
+
+// Filter transient errors from kubectl output
+func ParseKubectlJSONResult(t testing.TB, str string) gjson.Result {
+	for _, error := range KubectlTransientErrors {
+		str = regexp.MustCompile(error).ReplaceAllString(str, "")
+	}
+	return ParseJSONResult(t, str)
 }

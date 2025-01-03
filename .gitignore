@@ -1,7 +1,8 @@
 *.iml
 .idea
 credentials.json
-docs/meta/env
-config-connector/tests/testcases/environments.yaml
 .DS_Store
 .vscode
+*.pyc
+cli/bpmetadata/int-test/.working
+go.work.sum

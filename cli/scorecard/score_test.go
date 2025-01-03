@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,13 +78,17 @@ func TestWriteViolations(t *testing.T) {
 
 	for _, tc := range tests {
 		output := new(bytes.Buffer)
-		fileContent, err := ioutil.ReadFile(testRoot + "/output/" + tc.filename)
+		fileContent, err := os.ReadFile(testRoot + "/output/" + tc.filename)
 		if err != nil {
 			t.Fatal("unexpected error", err)
 		}
 		expected := tc.listMaker(fileContent)
 
-		writeResults(config, output, tc.format, nil)
+		err = writeResults(config, output, tc.format, nil)
+		if err != nil {
+			t.Fatal("unexpected error", err)
+		}
+
 		actual := tc.listMaker(output.Bytes())
 
 		assert.ElementsMatch(t, expected, actual, tc.message)

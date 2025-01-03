@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/GoogleContainerTools/kpt-functions-catalog/functions/go/list-setters/listsetters"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -13,7 +12,7 @@ import (
 
 // UpsertSetters inserts or updates setters if apply-setters fn config is discovered.
 func UpsertSetters(nodes []*yaml.RNode, setters map[string]string) error {
-	kf, err := listsetters.FindKptfile(nodes)
+	kf, err := findKptfile(nodes)
 	if err != nil {
 		return err
 	}
@@ -42,7 +41,7 @@ func UpsertSetters(nodes []*yaml.RNode, setters map[string]string) error {
 	return nil
 }
 
-//findSetterNode finds setter node from a slice of nodes.
+// findSetterNode finds setter node from a slice of nodes.
 func findSetterNode(nodes []*yaml.RNode, path string) (*yaml.RNode, error) {
 	for _, node := range nodes {
 		np := node.GetAnnotations()[kioutil.PathAnnotation]

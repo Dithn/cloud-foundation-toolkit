@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Google LLC
+ * Copyright 2021-2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,13 @@
 package gcloud
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-foundation-toolkit/infra/blueprint-test/pkg/utils"
 	"github.com/gruntwork-io/terratest/modules/logger"
 	"github.com/gruntwork-io/terratest/modules/shell"
+	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/tidwall/gjson"
 )
@@ -78,22 +80,30 @@ func newCmdConfig(opts ...cmdOption) (*CmdCfg, error) {
 
 // RunCmd executes a gcloud command and fails test if there are any errors.
 func RunCmd(t testing.TB, cmd string, opts ...cmdOption) string {
+	op, err := RunCmdE(t, cmd, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return op
+}
+
+// RunCmdE executes a gcloud command and return output.
+func RunCmdE(t testing.TB, cmd string, opts ...cmdOption) (string, error) {
 	gOpts, err := newCmdConfig(opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// split command into args
-	args := strings.Fields(cmd)
+	args, err := shellwords.Parse(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
 	gcloudCmd := shell.Command{
 		Command: "gcloud",
 		Args:    append(args, gOpts.commonArgs...),
 		Logger:  gOpts.logger,
 	}
-	op, err := shell.RunCommandAndGetStdOutE(t, gcloudCmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return op
+	return shell.RunCommandAndGetStdOutE(t, gcloudCmd)
 }
 
 // Run executes a gcloud command and returns value as gjson.Result.
@@ -104,4 +114,50 @@ func Run(t testing.TB, cmd string, opts ...cmdOption) gjson.Result {
 		t.Fatalf("Error parsing output, invalid json: %s", op)
 	}
 	return gjson.Parse(op)
+}
+
+// TFVet executes gcloud beta terraform vet
+func TFVet(t testing.TB, planFilePath string, policyLibraryPath, terraformVetProject string) gjson.Result {
+	op, err := RunCmdE(t, fmt.Sprintf("beta terraform vet %s --policy-library=%s --project=%s", planFilePath, policyLibraryPath, terraformVetProject))
+	if err != nil && !(strings.Contains(err.Error(), "Validating resources") && strings.Contains(err.Error(), "done")) {
+		t.Fatal(err)
+	}
+	if !gjson.Valid(op) {
+		t.Fatalf("Error parsing output, invalid json: %s", op)
+	}
+	return gjson.Parse(op)
+}
+
+// RunWithCmdOptsf executes a gcloud command and returns value as gjson.Result.
+//
+// RunWithCmdOptsf(t, ops.., "projects list --filter=%s", "projectId")
+//
+// It fails the test if there are any errors executing the gcloud command or parsing the output value.
+func RunWithCmdOptsf(t testing.TB, opts []cmdOption, cmd string, args ...interface{}) gjson.Result {
+	return Run(t, utils.StringFromTextAndArgs(append([]interface{}{cmd}, args...)...), opts...)
+}
+
+// Runf executes a gcloud command and returns value as gjson.Result.
+//
+// Runf(t, "projects list --filter=%s", "projectId")
+//
+// It fails the test if there are any errors executing the gcloud command or parsing the output value.
+func Runf(t testing.TB, cmd string, args ...interface{}) gjson.Result {
+	return Run(t, utils.StringFromTextAndArgs(append([]interface{}{cmd}, args...)...))
+}
+
+// ActivateCredsAndEnvVars activates credentials and exports auth related envvars.
+func ActivateCredsAndEnvVars(t testing.TB, creds string) {
+	credsPath, err := utils.WriteTmpFile(creds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	RunCmd(t, "auth activate-service-account", WithCommonArgs([]string{"--key-file", credsPath}))
+	// set auth related env vars
+	// TF provider auth
+	utils.SetEnv(t, "GOOGLE_CREDENTIALS", creds)
+	// gcloud SDK override
+	utils.SetEnv(t, "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", credsPath)
+	// ADC
+	utils.SetEnv(t, "GOOGLE_APPLICATION_CREDENTIALS", credsPath)
 }

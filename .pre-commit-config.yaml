@@ -1,0 +1,18 @@
+exclude: |
+  (?x)^(
+    reports/.*|
+    cli/testdata/.*|
+    cli/bptest/.*|
+    infra/blueprint-test/.*.json
+  )$
+repos:
+  - repo: https://github.com/renovatebot/pre-commit-hooks
+    rev: 39.83.1
+    hooks:
+      - id: renovate-config-validator
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace

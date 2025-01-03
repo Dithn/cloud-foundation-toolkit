@@ -20,7 +20,7 @@ CLOUD_SDK_VERSION=$1
 
 cd /build
 
-wget "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz"
+wget -nv "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz"
 tar -C /usr/local -xzf "google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz"
 rm "google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz"
 
@@ -31,8 +31,12 @@ ln -s /lib /lib64
 gcloud config set core/disable_usage_reporting true
 gcloud config set component_manager/disable_update_check true
 gcloud config set survey/disable_prompts true
-gcloud components install beta --quiet
-gcloud components install alpha --quiet
+gcloud config set enable_feature_flags false
+# https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+# https://cloud.google.com/docs/terraform/policy-validation/quickstart
+gcloud components install alpha beta terraform-tools gke-gcloud-auth-plugin --quiet
+
+rm -rf /usr/local/google-cloud-sdk/.install/.backup
 
 gcloud --version
 gsutil version -l

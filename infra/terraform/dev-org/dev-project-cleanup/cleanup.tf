@@ -16,14 +16,14 @@
 
 module "app-engine" {
   source      = "terraform-google-modules/project-factory/google//modules/app_engine"
-  version     = "~> 9.0"
+  version     = "~> 17.0"
   location_id = local.app_location
   project_id  = module.project.project_id
 }
 
 module "projects_cleanup" {
-  source = "terraform-google-modules/scheduled-function/google//modules/project_cleanup"
-  version = "~> 1.5.1"
+  source  = "terraform-google-modules/scheduled-function/google//modules/project_cleanup"
+  version = "~> 6.0"
 
   job_schedule             = "17 * * * *"
   max_project_age_in_hours = "24"
@@ -32,5 +32,5 @@ module "projects_cleanup" {
   region                   = local.region
   target_excluded_labels   = local.exclude_labels
   target_folder_id         = local.cleanup_folder
+  function_docker_registry = "ARTIFACT_REGISTRY"
 }
-

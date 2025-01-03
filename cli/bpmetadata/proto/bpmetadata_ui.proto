@@ -1,0 +1,306 @@
+syntax = "proto3";
+
+package google.cloud.config.bpmetadata;
+
+import "google/protobuf/struct.proto";
+import "bpmetadata_ui_ext.proto";
+
+// TODO: update copybara configuration for go to java package transformation
+option go_package = "github.com/GoogleCloudPlatform/cloud-foundation-toolkit/cli/bpmetadata";
+
+// BlueprintUIInput is the structure for holding Input and Input Section (i.e. groups) specific metadata.
+message BlueprintUIInput {
+  // variables is a map defining all inputs on the UI.
+  // Gen: partial
+  map<string, DisplayVariable> variables = 1; // @gotags: json:"variables,omitempty" yaml:"variables,omitempty"
+
+  // Sections is a generic structure for grouping inputs together.
+  // Gen: manually-authored
+  repeated DisplaySection sections = 2; // @gotags: json:"sections,omitempty" yaml:"sections,omitempty"
+
+  // List of boolean groups that will be referenced by properties.
+  // Gen: manually-authored
+  repeated BooleanGroup boolean_groups = 3; // @gotags: json:"booleanGroups,omitempty" yaml:"booleanGroups,omitempty"
+}
+
+// Additional display specific metadata pertaining to a particular
+// input variable.
+message DisplayVariable {
+  reserved 19;
+
+  // The variable name from the corresponding standard metadata file.
+  // Gen: auto-generated - the Terraform variable name
+  string name = 1; // @gotags: json:"name" yaml:"name"
+
+  // Visible title for the variable on the UI. If not present,
+  // Name will be used for the Title.
+  // Gen: auto-generated - the Terraform variable converted to title case e.g.
+  // variable "bucket_admins" will convert to "Bucket Admins" as the title.
+  string title = 2; // @gotags: json:"title" yaml:"title"
+
+  // A flag to hide or show the variable on the UI.
+  // Gen: manually-authored
+  bool invisible = 3; // @gotags: json:"invisible,omitempty" yaml:"invisible,omitempty"
+
+  // Variable tooltip.
+  // Gen: manually-authored
+  string tooltip = 4; // @gotags: json:"tooltip,omitempty" yaml:"tooltip,omitempty"
+
+  // Placeholder text (when there is no default).
+  // Gen: manually-authored
+  string placeholder = 5; // @gotags: json:"placeholder,omitempty" yaml:"placeholder,omitempty"
+
+  // Regex based validation rules for the variable.
+  // Gen: manually-authored
+  string regex_validation = 6; // @gotags: json:"regexValidation,omitempty" yaml:"regexValidation,omitempty"
+
+  // Minimum no. of inputs for the input variable.
+  // Gen: manually-authored
+  int32 min_items = 7; // @gotags: json:"minItems,omitempty" yaml:"minItems,omitempty"
+
+  // Max no. of inputs for the input variable.
+  // Gen: manually-authored
+  int32 max_items = 8; // @gotags: json:"maxItems,omitempty" yaml:"maxItems,omitempty"
+
+  // Minimum length for string values.
+  // Gen: manually-authored
+  int32 min_length = 9; // @gotags: json:"minLength,omitempty" yaml:"minLength,omitempty"
+
+  // Max length for string values.
+  // Gen: manually-authored
+  int32 max_length = 10; // @gotags: json:"maxLength,omitempty" yaml:"maxLength,omitempty"
+
+  // Minimum value for numeric types.
+  // Gen: manually-authored
+  float min = 11; // @gotags: json:"min,omitempty" yaml:"min,omitempty"
+
+  // Max value for numeric types.
+  // Gen: manually-authored
+  float max = 12; // @gotags: json:"max,omitempty" yaml:"max,omitempty"
+
+  // The name of a section to which this variable belongs.
+  // variables belong to the root section if this field is
+  // not set.
+  // Gen: manually-authored
+  string section = 13; // @gotags: json:"section,omitempty" yaml:"section,omitempty"
+
+  // UI extension associated with the input variable.
+  // E.g. for rendering a GCE machine type selector:
+  //
+  // xGoogleProperty:
+  //   type: GCE_MACHINE_TYPE
+  //   zoneProperty: myZone
+  //   gceMachineType:
+  //     minCpu: 2
+  //     minRamGb:
+  // Gen: manually-authored
+  GooglePropertyExtension x_google_property = 14; // @gotags: json:"xGoogleProperty,omitempty" yaml:"xGoogleProperty,omitempty"
+
+  // Text describing the validation rules for the property. Typically shown
+  // after an invalid input.
+  // Optional. UTF-8 text. No markup. At most 128 characters.
+  // Gen: manually-authored
+  string validation = 15; // @gotags: json:"validation,omitempty" yaml:"validation,omitempty"
+
+  // Property subtext, displayed below the title.
+  // Gen: manually-authored
+  string subtext = 16; // @gotags: json:"subtext,omitempty" yaml:"subtext,omitempty"
+
+  // Labels for enum values.
+  // Values must be UTF-8 text with no markup, and at most 64 characters.
+  // Gen: manually-authored
+  repeated ValueLabel enum_value_labels = 17; // @gotags: json:"enumValueLabels,omitempty" yaml:"enumValueLabels,omitempty"
+
+  // Indicates the "advanced" level of the input property. Level 0 (default)
+  // will always be shown. Level 1 corresponds to one expansion (user clicks
+  // "show advanced options" or "more options"). Higher levels correspond to
+  // further expansions, or they may be collapsed to level 1 by the UI
+  // implementation.
+  // Optional.
+  // Gen: manually-authored
+  int32 level = 18; // @gotags: json:"level,omitempty" yaml:"level,omitempty"
+
+  // The name of a boolean group from Input.booleanGroups to which this
+  // property belongs. Only allowed for properties declared as type boolean in
+  // the schema. Properties in a boolean group must be adjacent in the
+  // properties list and must belong to the same section (if any).
+  // Optional.
+  // Gen: manually-authored
+  string boolean_group = 20; // @gotags: json:"booleanGroup,omitempty" yaml:"booleanGroup,omitempty"
+
+  // Alternate default value.
+  // This allows authors to define an alternative value for pre identified usecases such as security.
+  // If specified, this value can be used instead of the default value in BlueprintVariable.
+  // Gen: manually-authored.
+  message AlternateDefault {
+    // Type of the alternate default.
+    enum AlternateType {
+      // Default
+      ALTERNATE_TYPE_UNSPECIFIED = 0;
+      // A more secure default.
+      ALTERNATE_TYPE_SECURITY = 1;
+      // A default specifically needed for Design center.
+      ALTERNATE_TYPE_DC = 2;
+    }
+    AlternateType type = 1;  // @gotags: json:"type,omitempty" yaml:"type,omitempty"
+    // Value of the alternate default.
+    google.protobuf.Value value = 2; // @gotags: json:"value,omitempty" yaml:"value,omitempty"
+  }
+  repeated AlternateDefault alt_defaults = 21; // @gotags: json:"altDefaults,omitempty" yaml:"altDefaults,omitempty"
+
+  repeated DisplayVariableToggle toggle_using_variables = 22; // @gotags: json:"toggleUsingVariables,omitempty" yaml:"toggleUsingVariables,omitempty"
+}
+
+message DisplayVariableToggle {
+  // The name of the variable used to toggle the display of another variable.
+  string variable_name = 1; // @gotags: json:"variableName,omitempty" yaml:"variableName,omitempty"
+
+  // The value of the variable used to toggle the display of another variable.
+  repeated string variable_values = 2; // @gotags: json:"variableValues,omitempty" yaml:"variableValue,omitempty"
+
+  // The type of the variable used to toggle the display of another variable.
+  ToggleType type = 3; // @gotags: json:"type,omitempty" yaml:"type,omitempty"
+
+  enum ToggleType {
+    // Default
+    DISPLAY_VARIABLE_TOGGLE_TYPE_UNSPECIFIED = 0;
+    // Boolean
+    DISPLAY_VARIABLE_TOGGLE_TYPE_BOOLEAN = 1;
+    // String
+    DISPLAY_VARIABLE_TOGGLE_TYPE_STRING = 2;
+    // Integer
+    DISPLAY_VARIABLE_TOGGLE_TYPE_INTEGER = 3;
+  }
+}
+
+message ValueLabel {
+  string label = 1; // @gotags: json:"label,omitempty" yaml:"label,omitempty"
+  string value = 2; // @gotags: json:"value,omitempty" yaml:"value,omitempty"
+}
+
+// A logical group of variables. [Section][]s may also be grouped into
+// sub-sections.
+message DisplaySection {
+  // The name of the section, referenced by DisplayVariable.Section
+  // Section names must be unique.
+  // Gen: manually-authored
+  string name = 1; // @gotags: json:"name" yaml:"name"
+
+  // Section title.
+  // If not provided, name will be used instead.
+  // Gen: manually-authored
+  string title = 2; // @gotags: json:"title,omitempty" yaml:"title,omitempty"
+
+  // Section tooltip.
+  // Gen: manually-authored
+  string tooltip = 3; // @gotags: json:"tooltip,omitempty" yaml:"tooltip,omitempty"
+
+  // Section subtext.
+  // Gen: manually-authored
+  string subtext = 4; // @gotags: json:"subtext,omitempty" yaml:"subtext,omitempty"
+
+  // The name of the parent section (if parent is not the root section).
+  // Gen: manually-authored
+  string parent = 5; // @gotags: json:"parent,omitempty" yaml:"parent,omitempty"
+}
+
+// Groups a list of boolean properties into one logical property for the
+// purposes of the configuration form. The title of a [BooleanGroup][] has the
+// same styling as the title of an ordinary property, and individual properties
+// in the group will be packed more tightly together to indicate their
+// association. Child of [Input][].
+message BooleanGroup {
+  // The name of the group, referenced by [Property][]
+  // <code>.booleanGroup</code>.
+  // BooleanGroup names must be unique. Required.
+  // Gen: manually-authored
+  string name = 1; // @gotags: json:"name" yaml:"name"
+
+  // Group title.
+  // Required. UTF-8 text. No markup. At most 64 characters.
+  // Gen: manually-authored
+  string title = 2; // @gotags: json:"title" yaml:"title"
+
+  // Group tooltip.
+  // Optional. HTML (<code>&lt;a href&gt;</code> tags only). At most 256
+  // characters.
+  // Gen: manually-authored
+  string tooltip = 3; // @gotags: json:"tooltip,omitempty" yaml:"tooltip,omitempty"
+
+  // Group subtext.
+  // Optional. HTML (<code>&lt;a href&gt;</code> tags only). At most 256
+  // characters.
+  // Gen: manually-authored
+  string subtext = 4; // @gotags: json:"subtext,omitempty" yaml:"subtext,omitempty"
+}
+
+message BlueprintUIOutput {
+  // Short message to be displayed while the blueprint is deploying.
+  // At most 128 characters.
+  // Gen: manually-authored
+  string output_message = 1; // @gotags: json:"outputMessage,omitempty" yaml:"outputMessage,omitempty"
+
+  // List of suggested actions to take.
+  // Gen: manually-authored
+  repeated UIActionItem suggested_actions = 2; // @gotags: json:"suggestedActions,omitempty" yaml:"suggestedActions,omitempty"
+
+  // outputs is a map defining a subset of Terraform outputs on the UI
+  // that may need additional UI configuration.
+  // Gen: manually-authored
+  map<string, DisplayOutput> outputs = 3; // @gotags: json:"outputs,omitempty" yaml:"outputs,omitempty"
+}
+
+// An item appearing in a list of required or suggested steps.
+message UIActionItem {
+  // Summary heading for the item.
+  // Required. Accepts string expressions. At most 64 characters.
+  // Gen: manually-authored
+  string heading = 1; // @gotags: json:"heading" yaml:"heading"
+
+  // Longer description of the item.
+  // At least one description or snippet is required.
+  // Accepts string expressions. HTML <code>&lt;a href&gt;</code>
+  // tags only. At most 512 characters.
+  // Gen: manually-authored
+  string description = 2; // @gotags: json:"description,omitempty" yaml:"description,omitempty"
+
+  // Fixed-width formatted code snippet.
+  // At least one description or snippet is required.
+  // Accepts string expressions. UTF-8 text. At most 512 characters.
+  // Gen: manually-authored
+  string snippet = 3; // @gotags: json:"snippet,omitempty" yaml:"snippet,omitempty"
+
+  // If present, this expression determines whether the item is shown.
+  // Should be in the form of a Boolean expression e.g. outputs.hasExternalIP
+  // where `externalIP` is the output.
+  // Gen: manually-authored
+  string show_if = 4; // @gotags: json:"showIf,omitempty" yaml:"showIf,omitempty"
+}
+
+// Additional display specific metadata pertaining to a particular
+// Terraform output. Only applicable for Outputs that are URLs.
+message DisplayOutput {
+  // open_in_new_tab defines if the Output action should be opened
+  // in a new tab.
+  // Gen: manually-authored
+  bool open_in_new_tab = 1; // @gotags: json:"openInNewTab,omitempty" yaml:"openInNewTab,omitempty"
+
+  // show_in_notification defines if the Output should shown in
+  // notification for the deployment.
+  // Gen: manually-authored
+  bool show_in_notification = 2; // @gotags: json:"showInNotification,omitempty" yaml:"showInNotification,omitempty"
+
+  // label to display on the Output action button
+  // Gen: manually-authored
+  string label = 3; // @gotags: json:"label,omitempty" yaml:"label,omitEmpty"
+
+  // Visibility defines how the output is exposed.
+  // Gen: manually-authored.
+  enum Visibility {
+    // Default
+    VISIBILITY_UNSPECIFIED = 0;
+    // Expose output as root module output.
+    VISIBILITY_ROOT = 1;
+  }
+  Visibility visibility = 4;  // @gotags: json:"visibility,omitempty" yaml:"visibility,omitEmpty"
+}

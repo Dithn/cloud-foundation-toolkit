@@ -1,0 +1,28 @@
+{
+  "separate-pull-requests": true,
+  "tag-separator": "/",
+  "include-component-in-tag": true,
+  "packages": {
+    "infra/blueprint-test": {
+      "release-type": "go",
+      "package-name": "blueprint-test",
+      "component": "infra/blueprint-test",
+      "pull-request-title-pattern": "chore(release-please): release blueprint-test ${version}",
+      "bump-minor-pre-major": true
+    },
+    "infra/module-swapper": {
+      "release-type": "go",
+      "package-name": "module-swapper",
+      "component": "infra/module-swapper",
+      "pull-request-title-pattern": "chore(release-please): release module-swapper ${version}",
+      "bump-minor-pre-major": true
+    },
+    "tflint-ruleset-blueprint": {
+      "release-type": "go",
+      "package-name": "tflint-ruleset-blueprint",
+      "component": "tflint-ruleset-blueprint",
+      "pull-request-title-pattern": "chore(release-please): release tflint-ruleset-blueprint ${version}",
+      "bump-minor-pre-major": true
+    }
+  }
+}

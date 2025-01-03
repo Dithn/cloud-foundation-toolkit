@@ -1,0 +1,86 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "mergeConfidence:all-badges",
+    "config:recommended",
+    ":semanticCommits",
+    ":preserveSemverRanges",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "minimumReleaseAge": "7 days",
+  "ignorePaths": ["tflint-ruleset-blueprint/rules/testdata/**"],
+  "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "labels": ["type:security"],
+    "minimumReleaseAge": null
+  },
+  "separateMajorMinor": false,
+  "additionalBranchPrefix": "{{parentDir}}-",
+  "constraints": {
+    "go": "1.23"
+  },
+  "packageRules": [
+    {
+      "matchFileNames": [".github/**"],
+      "extends": [":semanticCommitTypeAll(chore)", ":rebaseStalePrs"]
+    },
+    {
+      "matchManagers": ["terraform"],
+      "matchDepNames": ["google", "google-beta"],
+      "groupName": "terraform google provider",
+      "rangeStrategy": "widen"
+    },
+    {
+      "matchManagers": ["terraform"],
+      "matchDepTypes": ["module"],
+      "enabled": false
+    },
+    {
+      "matchDepTypes": ["require"],
+      "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
+      "groupName": "GO modules"
+    },
+    {
+      "matchPackageNames": ["go"],
+      "allowedVersions": "1.23",
+      "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Makefile$"],
+      "matchStrings": ["ALPINE_VERSION := (?<currentValue>.*?)\\n"],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "alpine"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Makefile$"],
+      "matchStrings": [
+        "DOCKER_TAG_VERSION_DEVELOPER_TOOLS := (?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "docker",
+      "registryUrlTemplate": "https://gcr.io/cloud-foundation-cicd",
+      "depNameTemplate": "cft/developer-tools"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)build/(int|lint)\\.cloudbuild\\.yaml$"],
+      "matchStrings": [
+        "  _DOCKER_TAG_VERSION_DEVELOPER_TOOLS: '(?<currentValue>.*?)'\\n"
+      ],
+      "datasourceTemplate": "docker",
+      "registryUrlTemplate": "https://gcr.io/cloud-foundation-cicd",
+      "depNameTemplate": "cft/developer-tools"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Makefile$"],
+      "matchStrings": ["GOLANGCI_VERSION := (?<currentValue>.*?)\\n"],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "golangci/golangci-lint",
+      "extractVersionTemplate": "^v?(?<version>.*)$"
+    }
+  ]
+}

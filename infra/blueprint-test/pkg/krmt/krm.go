@@ -30,6 +30,7 @@ type KRMBlueprintTest struct {
 	discovery.BlueprintTestConfig                          // additional blueprint test configs
 	name                          string                   // descriptive name for the test
 	exampleDir                    string                   // directory containing KRM blueprint example
+	additionalResources           []string                 // paths to directories or files containing additional resources to be applied
 	buildDir                      string                   // directory to hydrated blueprint configs pre apply
 	kpt                           *kpt.CmdCfg              // kpt cmd config
 	timeout                       string                   // timeout for KRM resource status
@@ -55,6 +56,12 @@ func WithName(name string) krmtOption {
 func WithDir(dir string) krmtOption {
 	return func(f *KRMBlueprintTest) {
 		f.exampleDir = dir
+	}
+}
+
+func WithAdditionalResources(rscs ...string) krmtOption {
+	return func(f *KRMBlueprintTest) {
+		f.additionalResources = append(f.additionalResources, rscs...)
 	}
 }
 
@@ -123,16 +130,22 @@ func NewKRMBlueprintTest(t testing.TB, opts ...krmtOption) *KRMBlueprintTest {
 			t.Fatalf("Dir path %s does not exist", krmt.exampleDir)
 		}
 	} else {
-		cwd, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("unable to get wd :%v", err)
-		}
-		exampleDir, err := discovery.GetConfigDirFromTestDir(cwd)
+		exampleDir, err := discovery.GetConfigDirFromTestDir(utils.GetWD(t))
 		if err != nil {
 			t.Fatalf("unable to detect KRM dir :%v", err)
 		}
 		krmt.exampleDir = exampleDir
 	}
+	// if explicit resourcesDir is provided, validate it.
+	if len(krmt.additionalResources) != 0 {
+		for _, path := range krmt.additionalResources {
+			_, err := os.Stat(path)
+			if os.IsNotExist(err) {
+				t.Fatalf("Path for additional resources %s does not exist", path)
+			}
+		}
+	}
+
 	// discover test config
 	var err error
 	krmt.BlueprintTestConfig, err = discovery.GetTestConfig(path.Join(krmt.exampleDir, discovery.DefaultTestConfigFilename))
@@ -154,12 +167,8 @@ func NewKRMBlueprintTest(t testing.TB, opts ...krmtOption) *KRMBlueprintTest {
 
 // getDefaultBuildDir returns a temporary build directory for hydrated configs.
 func (b *KRMBlueprintTest) getDefaultBuildDir() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		b.t.Fatalf("unable to get wd :%v", err)
-	}
-	buildDir := path.Join(cwd, tmpBuildDir)
-	err = os.MkdirAll(buildDir, 0755)
+	buildDir := path.Join(utils.GetWD(b.t), tmpBuildDir)
+	err := os.MkdirAll(buildDir, 0755)
 	if err != nil {
 		b.t.Fatalf("unable to create %s :%v", buildDir, err)
 	}
@@ -201,6 +210,15 @@ func (b *KRMBlueprintTest) setupBuildDir() {
 	if err != nil {
 		b.t.Fatalf("unable to copy %s to %s :%v", b.exampleDir, b.buildDir, err)
 	}
+	// copy over additional resources into build dir, if present
+	if len(b.additionalResources) != 0 {
+		for _, path := range b.additionalResources {
+			err = copy.Copy(path, b.buildDir)
+			if err != nil {
+				b.t.Fatalf("unable to copy %s to %s :%v", path, b.buildDir, err)
+			}
+		}
+	}
 	// subsequent kpt pkg update requires a clean git repo without uncommitted changes
 	// init a new git repo in build dir and commit changes
 	git := git.NewCmdConfig(b.t, git.WithDir(b.buildDir))
@@ -215,7 +233,9 @@ func (b *KRMBlueprintTest) updateSetters() {
 	if err != nil {
 		b.t.Fatalf("unable to read resources in %s :%v", b.buildDir, err)
 	}
-	kpt.UpsertSetters(rs, b.setters)
+	if err := kpt.UpsertSetters(rs, b.setters); err != nil {
+		b.t.Fatalf("unable to upsert setters in %s :%v", b.buildDir, err)
+	}
 	err = kpt.WritePkgResources(b.buildDir, rs)
 	if err != nil {
 		b.t.Fatalf("unable to write resources in %s :%v", b.buildDir, err)
@@ -258,21 +278,21 @@ func (b *KRMBlueprintTest) DefaultApply(assert *assert.Assertions) {
 	b.kpt.RunCmd("live", "status", "--output", "json", "--poll-until", "current", "--timeout", b.timeout)
 }
 
-// DefaultVerify asserts no resource changes exist after apply.
+// DefaultVerify asserts all resources are status successful
 func (b *KRMBlueprintTest) DefaultVerify(assert *assert.Assertions) {
 	jsonOp := b.kpt.RunCmd("live", "apply", "--output", "json")
 
-	// assert each resource is unchanged from initial apply
+	// assert each resource status is successful
 	resourceStatus, err := kpt.GetPkgApplyResourcesStatus(jsonOp)
 	assert.NoError(err, "Resource statuses should be parsable")
 	for _, r := range resourceStatus {
-		assert.Equal(kpt.ResourceOperationUnchanged, r.Operation, "Resource should be unchanged")
+		assert.Equal(kpt.ResourceOperationSuccessful, r.Status, "Status should be successful")
 	}
 
-	// assert count of resources applied equals count of resources unchanged
+	// assert count of resources applied equals count of resources successful
 	groupStatus, err := kpt.GetPkgApplyGroupStatus(jsonOp)
 	assert.NoError(err, "Group status should be parsable")
-	assert.Equal(groupStatus.Count, groupStatus.UnchangedCount, "All resources should be unchanged")
+	assert.Equal(groupStatus.Count, groupStatus.Successful, "All resources should be successful")
 
 }
 
@@ -284,7 +304,7 @@ func (b *KRMBlueprintTest) DefaultTeardown(assert *assert.Assertions) {
 
 // ShouldSkip checks if a test should be skipped
 func (b *KRMBlueprintTest) ShouldSkip() bool {
-	return b.Spec.Skip
+	return b.BlueprintTestConfig.Spec.Skip
 }
 
 // AutoDiscoverAndTest discovers KRM config from examples/fixtures and runs tests.
@@ -341,7 +361,8 @@ func (b *KRMBlueprintTest) Teardown(assert *assert.Assertions) {
 // Test runs init, apply, verify, teardown in order for the blueprint.
 func (b *KRMBlueprintTest) Test() {
 	if b.ShouldSkip() {
-		b.logger.Logf(b.t, "Skipping test due to config %s", b.Path)
+		b.logger.Logf(b.t, "Skipping test due to config %s", b.BlueprintTestConfig.Path)
+		b.t.SkipNow()
 		return
 	}
 	a := assert.New(b.t)
@@ -350,4 +371,13 @@ func (b *KRMBlueprintTest) Test() {
 	defer utils.RunStage("teardown", func() { b.Teardown(a) })
 	utils.RunStage("apply", func() { b.Apply(a) })
 	utils.RunStage("verify", func() { b.Verify(a) })
+}
+
+// GetBuildDir returns the temporary build dir created for hydrating config. Defaults to .build/test-name.
+func (b *KRMBlueprintTest) GetBuildDir() string {
+	if b.buildDir == "" {
+		b.t.Fatalf("unable to get a valid build directory")
+	}
+
+	return b.buildDir
 }
